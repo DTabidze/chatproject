@@ -1,1 +1,4 @@
 server/.venv
+server/secret_keys.py
+server/migrations
+server/app.db

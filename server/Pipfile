@@ -7,6 +7,11 @@ name = "pypi"
 flask = "*"
 flask-socketio = "*"
 flask-cors = "*"
+flask-bcrypt = "*"
+flask-sqlalchemy = "*"
+flask-migrate = "*"
+sqlalchemy-serializer = "*"
+sqlalchemy = "*"
 
 [dev-packages]
 

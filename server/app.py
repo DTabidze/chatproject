@@ -2,13 +2,13 @@ from flask import Flask, render_template, request, session as flask_session
 from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS
 import json
-from config import app, db, socketio
+from config import app, db, socketio  # Import from config.py
 from models import User, Message, Contact
 from random import randrange
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 
-app = Flask(__name__)
+# app = Flask(__name__)
 # app.config["SECRET_KEY"] = "your_secret_key"
 # socketio = SocketIO(app)
 CORS(app)
@@ -185,7 +185,7 @@ def message_add_get():
 
 
 # EDIT OR DELETE MESSAGE
-@app.route("/messages/<int:id>", method=["PATCH", "DELETE"])
+@app.route("/messages/<int:id>", methods=["PATCH", "DELETE"])
 def message_edit_remove(id):
     message = Message.query.filter(Message.id == id).first()
     if not message:
@@ -208,7 +208,7 @@ def message_edit_remove(id):
 
 
 # GET CONTACT LIST, OR ADD NEW
-@app.route("/contacts", method=["GET", "POST"])
+@app.route("/contacts", methods=["GET", "POST"])
 def contact_list():
     if request.method == "GET":
         all = Contact.query.all()
@@ -239,3 +239,8 @@ def contact_delete(id):
         db.session.delete(contact)
         db.session.commit()
         return {"message": "contact deleted"}, 200
+
+
+if __name__ == "__main__":
+    # app.run(port=5555, debug=True)
+    socketio.run(app, host="10.129.3.117", port=8080, debug=True)
