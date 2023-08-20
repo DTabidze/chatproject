@@ -43,10 +43,14 @@ class User(db.Model, SerializerMixin):
 
     # RULES
     serilizer_rules = (
-        "-contact_sent.user_first_object",
-        "-contact_recived.user_second_obj",
-        "-sent_messages.user_sender",
-        "-recieved_massages.user_sender",
+        "-contacts_sent.user_first_obj.contacts_received",
+        "-contacts_sent.user_first_obj.contacts_sent",
+        "-contacts_sent.user_second_obj.contacts_sent",
+        "-contacts_sent.user_second_obj.contacts_received",
+        "-contacts_received.user_first_obj.contacts_sent",
+        "-contacts_received.user_first_obj.contacts_received",
+        "-contacts_received.user_second_obj.contacts_sent",
+        "-contacts_received.user_second_obj.contacts_received",
     )
 
     @hybrid_property
@@ -90,7 +94,12 @@ class Message(db.Model, SerializerMixin):
 
     # Rules
 
-    serialize_rules = ("-user_sender.sent_messages", "-user_reciver.recieved_massages")
+    serialize_rules = (
+        "-user_sender.sent_messages.user_sender",
+        "-user_sender.sent_messages.user_reciver",
+        "-user_reciver.recieved_massages.user_reciver",
+        "-user_reciver.recieved_massages.user_sender",
+    )
 
 
 class Contact(db.Model, SerializerMixin):
@@ -118,5 +127,5 @@ class Contact(db.Model, SerializerMixin):
 
     serialize_rules = (
         "-user_first_obj.contacts_sent",
-        "-user_second_onj.contacts_recived",
+        "-user_second_obj.contacts_received",
     )

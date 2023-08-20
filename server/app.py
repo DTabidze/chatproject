@@ -11,12 +11,16 @@ from sqlalchemy.exc import IntegrityError
 # app = Flask(__name__)
 # app.config["SECRET_KEY"] = "your_secret_key"
 # socketio = SocketIO(app)
-CORS(app)
+CORS(
+    app,
+    supports_credentials=True,
+)
+# resources={r"/*": {"origins": "http://192.168.1.162:3000"}},
 
 users = {}
 GLOBAL_SESSIONS = set()
 
-# socketio.init_app(app, cors_allowed_origins="*")
+socketio.init_app(app, cors_allowed_origins="*")
 
 
 @socketio.on("connect")
@@ -34,6 +38,7 @@ def handle_login(data):
 @socketio.on("message")
 def handle_message(message):
     print(str(message)[:100])
+    print(users)
     sender_username = users[request.sid]
     msg = json.loads(message)
 
@@ -53,6 +58,7 @@ def handle_message(message):
         emit(
             "message", json.dumps(message_data), room=request.sid
         )  # Emit as JSON string
+        print(message_data)
 
     if "image" in msg:
         image_data = {
@@ -82,13 +88,26 @@ def handle_disconnect():
 @app.route("/session")
 def session():
     user = User.query.filter(User.id == flask_session.get("user_id")).first()
+    print(flask_session)
+    print(GLOBAL_SESSIONS)
     if (
         "session_id" not in flask_session
         or flask_session["session_id"] not in GLOBAL_SESSIONS
     ):
         return {"error": "Please login"}, 401
     print(flask_session["user_id"])
-    return user.to_dict(rules=("-cars",))
+    return user.to_dict(
+        rules=(
+            "-contacts_sent.user_first_obj.contacts_received",
+            "-contacts_sent.user_first_obj.contacts_sent",
+            "-contacts_sent.user_second_obj.contacts_sent",
+            "-contacts_sent.user_second_obj.contacts_received",
+            "-contacts_received.user_first_obj.contacts_sent",
+            "-contacts_received.user_first_obj.contacts_received",
+            "-contacts_received.user_second_obj.contacts_sent",
+            "-contacts_received.user_second_obj.contacts_received",
+        )
+    )
 
 
 @app.route("/login", methods=["POST"])
@@ -96,7 +115,7 @@ def login():
     print(request.json)
     errorMsg = {"error": "username/password not on file"}
     username = request.json.get("username")
-    password = request.json.get("password")
+    password = request.json.get("password_hash")
     user = User.query.filter(User.username == username).first()
     if not user:
         return errorMsg, 401
@@ -104,8 +123,22 @@ def login():
         return errorMsg, 401
     flask_session["user_id"] = user.id
     flask_session["session_id"] = randrange(0, 1e18)
+    print(flask_session)
+    print(flask_session["user_id"], flask_session["session_id"])
     GLOBAL_SESSIONS.add(flask_session["session_id"])
-    return user.to_dict(rules=("-cars",))
+    print(GLOBAL_SESSIONS)
+    return user.to_dict(
+        rules=(
+            "-contacts_sent.user_first_obj.contacts_received",
+            "-contacts_sent.user_first_obj.contacts_sent",
+            "-contacts_sent.user_second_obj.contacts_sent",
+            "-contacts_sent.user_second_obj.contacts_received",
+            "-contacts_received.user_first_obj.contacts_sent",
+            "-contacts_received.user_first_obj.contacts_received",
+            "-contacts_received.user_second_obj.contacts_sent",
+            "-contacts_received.user_second_obj.contacts_received",
+        )
+    )
 
 
 @app.route("/logout", methods=["DELETE"])
@@ -123,14 +156,42 @@ def get_user_by_id(id):
     if not user:
         return {"error": "user not found"}, 404
     if request.method == "GET":
-        return user.to_dict(), 200
+        return (
+            user.to_dict(
+                rules=(
+                    "-contacts_sent.user_first_obj.contacts_received",
+                    "-contacts_sent.user_first_obj.contacts_sent",
+                    "-contacts_sent.user_second_obj.contacts_sent",
+                    "-contacts_sent.user_second_obj.contacts_received",
+                    "-contacts_received.user_first_obj.contacts_sent",
+                    "-contacts_received.user_first_obj.contacts_received",
+                    "-contacts_received.user_second_obj.contacts_sent",
+                    "-contacts_received.user_second_obj.contacts_received",
+                )
+            ),
+            200,
+        )
     elif request.method == "PATCH":
         data = request.json
         try:
             for key in data:
                 setattr(user, key, data[key])
             db.session.commit()
-            return user.to_dict(), 200
+            return (
+                user.to_dict(
+                    rules=(
+                        "-contacts_sent.user_first_obj.contacts_received",
+                        "-contacts_sent.user_first_obj.contacts_sent",
+                        "-contacts_sent.user_second_obj.contacts_sent",
+                        "-contacts_sent.user_second_obj.contacts_received",
+                        "-contacts_received.user_first_obj.contacts_sent",
+                        "-contacts_received.user_first_obj.contacts_received",
+                        "-contacts_received.user_second_obj.contacts_sent",
+                        "-contacts_received.user_second_obj.contacts_received",
+                    )
+                ),
+                200,
+            )
         except (IntegrityError, ValueError) as ie:
             return {"error": ie.args}, 422
 
@@ -147,7 +208,20 @@ def get_users():
         all = User.query.all()
         users = []
         for user in all:
-            users.append(user.to_dict())
+            users.append(
+                user.to_dict(
+                    rules=(
+                        "-contacts_sent.user_first_obj.contacts_received",
+                        "-contacts_sent.user_first_obj.contacts_sent",
+                        "-contacts_sent.user_second_obj.contacts_sent",
+                        "-contacts_sent.user_second_obj.contacts_received",
+                        "-contacts_received.user_first_obj.contacts_sent",
+                        "-contacts_received.user_first_obj.contacts_received",
+                        "-contacts_received.user_second_obj.contacts_sent",
+                        "-contacts_received.user_second_obj.contacts_received",
+                    )
+                )
+            )
         return users
     elif request.method == "POST":
         try:
@@ -157,7 +231,21 @@ def get_users():
                 setattr(user, key, data[key])
             db.session.add(user)
             db.session.commit()
-            return user.to_dict(), 201
+            return (
+                user.to_dict(
+                    rules=(
+                        "-contacts_sent.user_first_obj.contacts_received",
+                        "-contacts_sent.user_first_obj.contacts_sent",
+                        "-contacts_sent.user_second_obj.contacts_sent",
+                        "-contacts_sent.user_second_obj.contacts_received",
+                        "-contacts_received.user_first_obj.contacts_sent",
+                        "-contacts_received.user_first_obj.contacts_received",
+                        "-contacts_received.user_second_obj.contacts_sent",
+                        "-contacts_received.user_second_obj.contacts_received",
+                    )
+                ),
+                201,
+            )
         except (IntegrityError, ValueError) as ie:
             return {"error": ie.args}, 422
 
@@ -214,7 +302,20 @@ def contact_list():
         all = Contact.query.all()
         contacts = []
         for contact in all:
-            contacts.append(contact.to_dict())
+            contacts.append(
+                contact.to_dict(
+                    rules=(
+                        "-user_first_obj.contacts_sent.user_first_obj",
+                        "-user_first_obj.contacts_sent.user_second_obj",
+                        "-user_second_obj.contacts_sent.user_first_obj",
+                        "-user_second_obj.contacts_sent.user_second_obj",
+                        "-user_first_obj.contacts_received.user_first_obj",
+                        "-user_first_obj.contacts_received.user_second_obj",
+                        "-user_second_obj.contacts_received.user_first_obj",
+                        "-user_second_obj.contacts_received.user_second_obj",
+                    )
+                )
+            )
         return contacts, 200
     elif request.method == "POST":
         try:
@@ -224,7 +325,21 @@ def contact_list():
                 setattr(contact, key, data[key])
             db.session.add(contact)
             db.session.commit()
-            return contact.to_dict(), 201
+            return (
+                contact.to_dict(
+                    rules=(
+                        "-user_first_obj.contacts_sent.user_first_obj",
+                        "-user_first_obj.contacts_sent.user_second_obj",
+                        "-user_second_obj.contacts_sent.user_first_obj",
+                        "-user_second_obj.contacts_sent.user_second_obj",
+                        "-user_first_obj.contacts_received.user_first_obj",
+                        "-user_first_obj.contacts_received.user_second_obj",
+                        "-user_second_obj.contacts_received.user_first_obj",
+                        "-user_second_obj.contacts_received.user_second_obj",
+                    )
+                ),
+                201,
+            )
         except (IntegrityError, ValueError) as ie:
             return {"error": ie.args}, 422
 
@@ -243,4 +358,4 @@ def contact_delete(id):
 
 if __name__ == "__main__":
     # app.run(port=5555, debug=True)
-    socketio.run(app, host="10.129.3.117", port=8080, debug=True)
+    socketio.run(app, host="192.168.1.162", port=8080, debug=True)
